@@ -1,1 +1,27 @@
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Dependencies
 /vendor/
+
+# Generated output
+/stubs/
+
+# PHPUnit
+.phpunit.result.cache
+.phpunit.cache/
+
+# PHP CS Fixer
+.php-cs-fixer.cache
+
+# PHPStan
+.phpstan-cache/
+phpstan-baseline.neon
+
+# OS
+.DS_Store
+Thumbs.db

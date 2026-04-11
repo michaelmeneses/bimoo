@@ -1,0 +1,19 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Bimoo — Moodle Stub Generator
+ *
+ * @author     Michael Meneses <michael@middag.com.br>
+ * @copyright  2026 MIDDAG (https://www.middag.com.br)
+ * @license    GNU General Public License v3.0 or later
+ */
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use Bimoo\Console\Application;
+
+$application = new Application();
+$application->run();

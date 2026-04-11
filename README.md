@@ -1,62 +1,115 @@
-# Bimoo
+# Bimoo — Moodle Stub Generator
 
-Moodle declaration stubs, including classes, functions and globals, thanks to [php-stubs/generator](https://github.com/php-stubs/generator), helping IDEs and static analyzers.
+Bimoo generates PHP stub files (`.stub.php`) for the [Moodle LMS](https://moodle.org/) codebase. These stubs help IDEs and static analysis tools (PHPStan, Psalm, PhpStorm) understand Moodle's classes, functions, constants, and global variables without requiring a full Moodle installation.
 
-**Note:** The stubs file may be incomplete for your usage (generated for a limited portion of stuff), and may not be updated regularly. However, contributions, including issues and pull requests, will be really welcomed.
+## Features
 
-## How to use it?
+- **Full coverage** — Parses all PHP files in a Moodle installation recursively
+- **Multi-file output** — Generates `.stub.php` files mirroring Moodle's directory structure
+- **Moodle-aware** — Handles global variables (`$DB`, `$CFG`, `$USER`, `$PAGE`, `$OUTPUT`), `define()` constants, and procedural functions
+- **AST-based** — Uses `nikic/php-parser` for accurate parsing (no regex)
+- **Version tags** — Mirrors Moodle version tags (`v4.0.0`, `v4.3.2`, `v5.0.0`, etc.) for Composer version pinning
+- **Automated** — GitHub Actions syncs stubs across all Moodle stable branches and tags weekly
 
-First, thanks for using this.
+## Generated Stubs
 
-Simply, require it in your `composer.json`:
+The generated stubs are published to a separate repository:
 
-```
-composer require --dev machitgarha/bimoo
-```
+**[michaelmeneses/moodle-stubs](https://github.com/michaelmeneses/moodle-stubs)**
 
-Now, your IDE (or text editor) should show you the suggestions for Moodle functions and classes. Not limited to this, you can guide your static analyzer as well.
+- **Branches:** `MOODLE_400_STABLE`, `MOODLE_403_STABLE`, `MOODLE_500_STABLE`, `master`, etc.
+- **Tags:** `v4.0.0`, `v4.3.2`, `v5.0.0`, etc. (mirrors Moodle release tags from v4.0.0+)
 
-## What is included?
+## Usage
 
-First things first: The stubs file is generated from [official mirror Moodle repository](https://github.com/moodle/moodle/tree/master/lib). The updates to `stubs.php` must be done and commited manually from the repository, but the whole process to do so is almost automated (using `bin/generate-stubs` executable).
+### Generate stubs locally
 
-To see what paths are included and what not, see `data/path-list.json` file. You can use glob patterns in it, while it is not recommended (because it leads to huge stubs file).
+```bash
+# Install
+git clone https://github.com/michaelmeneses/bimoo.git
+cd bimoo
+composer install
 
-## Release management
+# Generate stubs from a local Moodle installation
+php bin/bimoo generate:stubs /path/to/moodle --output=./stubs
 
-To follow Moodle versions properly, and prevent from conflicts and confusions, instead of using [semantic versioning](https://semver.org), we use the following method:
-
-Each version is in the form of `<MoodleMajor>.<MoodleMinor>.<BimooUpdate>`.
-
-`<MoodleMajor>` and `<MoodleMinor>` are the pieces of Moodle release number a version of Bimoo is based on, as stated [here](https://docs.moodle.org/dev/Process#Stable_maintenance_cycles). The reason why the bug-fix piece of Moodle version is not included, is what its official documentation says: "Releases like 2.2.1, 2.2.2, 2.2.3 etc only include fixes based on the latest major release (2.2) and never any significant new features or database changes".
-
-`<BimooUpdate>` is the state of the current library for that specific Moodle version. In other words, considering a particular minor release of Moodle, it increases whenever an update is made to the library (i.e. the stubs file).
-
-For example, `3.11.19` means the twentieth series of changes supporting Moodle 3.11.*. Pay attention, it has nothing to do with Moodle 3.11.19 (which, perhaps, will never be released).
-
-Every Moodle version older than latest supported is followed in a separate branch. The branches are named as their Moodle version they follow, e.g. `3.9`. Ideally, `master` branch follows the latest Moodle version.
-
-**Note:** There is no guarantee to support all versions Moodle currently supports. However, support is pretty much welcomed from the community (maybe you?).
-
-## To-Do
-
--   Use GitHub Actions to automate the process. The workflow would be, cloning the repository of Moodle, switching to the latest stable version, run the generator for a list of predefined paths and files, commit the changes and push it back.
-
-## Contributions
-
-Feel free to do so.
-
-### Re-generating stubs file
-
-First, add your files and patterns to `data/path-list.json` file. Then, issue the following command for the `stubs.php` to be re-generated automatically:
-
-```
-./bin/generate-stubs <moodle-root-dir>
+# Options
+php bin/bimoo generate:stubs /path/to/moodle \
+    --output=./stubs \
+    --include-tests \
+    --exclude="mod/legacy" \
+    -v
 ```
 
-`<moodle-root-dir>` is the path to either a Moodle installation, or (a clone of) the official repository (see `--help` for more information).
+### Sync branches
 
-That's it! Commit the changes, make a PR, and we would all be happy!
+```bash
+php bin/bimoo sync:branches \
+    --stubs-repo=git@github.com:michaelmeneses/moodle-stubs.git \
+    --branches="MOODLE_405*" \
+    --dry-run
+```
+
+### Sync tags
+
+```bash
+# Sync all tags from v4.0.0+
+php bin/bimoo sync:tags \
+    --stubs-repo=git@github.com:michaelmeneses/moodle-stubs.git \
+    --dry-run
+
+# Sync specific tags
+php bin/bimoo sync:tags \
+    --stubs-repo=git@github.com:michaelmeneses/moodle-stubs.git \
+    --tags="v4.3.2,v5.0.0"
+```
+
+### Discover updates (CI)
+
+```bash
+# Output JSON of branches/tags that need updating (for GitHub Actions matrix)
+php bin/bimoo discover:updates \
+    --moodle-repo=git://git.moodle.org/moodle.git \
+    --stubs-repo=git@github.com:michaelmeneses/moodle-stubs.git \
+    --stubs-repo-slug=michaelmeneses/moodle-stubs
+```
+
+## Commands
+
+| Command | Description |
+|---|---|
+| `generate:stubs` | Generate `.stub.php` files from a local Moodle installation |
+| `sync:branches` | Sync stubs across Moodle branches with SHA-based skip logic |
+| `sync:tags` | Create stubs for Moodle version tags (v4.0.0+) |
+| `discover:updates` | Discover branches/tags needing updates (JSON output for CI) |
+
+## Composer Scripts
+
+| Script | Description |
+|---|---|
+| `composer test` | Run PHPUnit tests |
+| `composer test:coverage` | Run tests with coverage report |
+| `composer cs:check` | Check code style (PSR-12) |
+| `composer cs:fix` | Auto-fix code style |
+| `composer analyse` | Run PHPStan static analysis (level 6) |
+| `composer quality` | Run all checks: cs:check + analyse + test |
+
+## Requirements
+
+- PHP 8.1+
+- Composer
+
+## Architecture
+
+See [docs/adr/](docs/adr/) for Architecture Decision Records.
+
+## Sponsors
+
+Maintained by [Michael Meneses](https://github.com/michaelmeneses) and supported by [MIDDAG](https://middag.com.br) — Moodle development and technical services. Check out [MIDDAG for Moodle](https://middag.io), a plugin suite and development framework for Moodle.
+
+## Credits
+
+This project is a fork of [machitgarha/bimoo](https://github.com/machitgarha/bimoo), created by [Mohammad Amin Chitgarha](https://github.com/machitgarha). The original work laid the foundation for Moodle stub generation.
 
 ## License
 
