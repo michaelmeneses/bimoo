@@ -11,7 +11,25 @@ declare(strict_types=1);
  * @license    GNU General Public License v3.0 or later
  */
 
-require_once __DIR__ . '/../vendor/autoload.php';
+// Support both standalone usage and installation as a Composer dependency
+$autoloadPaths = [
+    __DIR__ . '/../vendor/autoload.php',       // standalone (running from bimoo repo)
+    __DIR__ . '/../../../autoload.php',         // installed as dependency (vendor/michaelmeneses/bimoo/bin/)
+];
+
+$autoloaderFound = false;
+foreach ($autoloadPaths as $autoloadPath) {
+    if (file_exists($autoloadPath)) {
+        require_once $autoloadPath;
+        $autoloaderFound = true;
+        break;
+    }
+}
+
+if (!$autoloaderFound) {
+    fwrite(STDERR, "Autoloader not found. Run 'composer install' first.\n");
+    exit(1);
+}
 
 use Bimoo\Console\Application;
 
