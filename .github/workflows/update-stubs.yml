@@ -25,7 +25,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   STUBS_REPO: git@github.com:michaelmeneses/moodle-stubs.git
   STUBS_REPO_SLUG: michaelmeneses/moodle-stubs
-  MOODLE_REPO: git://git.moodle.org/moodle.git
+  MOODLE_REPO: https://github.com/moodle/moodle.git
 
 jobs:
   # ──────────────────────────────────────────────────
