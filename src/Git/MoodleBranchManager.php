@@ -42,6 +42,11 @@ class MoodleBranchManager
             return $dir;
         }
 
+        // Clean up invalid/partial directory before cloning
+        if ($this->filesystem->exists($dir)) {
+            $this->filesystem->remove($dir);
+        }
+
         $this->runGit(['clone', '--bare', '--filter=blob:none', $this->moodleRepo, $dir]);
 
         return $dir;
