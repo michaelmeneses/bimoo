@@ -28,11 +28,20 @@ class MoodleBranchManager
     }
 
     /**
-     * Clone Moodle repository (bare with blob filter for efficiency).
+     * Clone or fetch Moodle repository (bare with blob filter for efficiency).
+     * If the bare repo already exists, fetches updates instead of re-cloning.
      */
     public function cloneMoodle(): string
     {
         $dir = $this->workDir . '/moodle';
+
+        if ($this->filesystem->exists($dir . '/HEAD')) {
+            // Bare repo already exists — fetch updates
+            $this->runGit(['fetch', '--all'], $dir);
+
+            return $dir;
+        }
+
         $this->runGit(['clone', '--bare', '--filter=blob:none', $this->moodleRepo, $dir]);
 
         return $dir;
