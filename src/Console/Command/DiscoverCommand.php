@@ -104,15 +104,30 @@ class DiscoverCommand extends Command
             );
         }
 
-        // Discover tags
+        // Discover tags (grouped by branch for parallel matrix)
         if ($type === 'all' || $type === 'tags') {
-            $result['tags'] = $this->discoverTags(
+            $rawTags = $this->discoverTags(
                 $io,
                 $moodleRepo,
                 $stubsRepo,
                 $minVersion,
                 $force,
             );
+
+            // Group by branch: [{"branch": "MOODLE_400_STABLE", "tags": "v4.0.0,v4.0.1"}, ...]
+            $grouped = [];
+            foreach ($rawTags as $entry) {
+                $branch = $entry['branch'] ?? 'unknown';
+                $grouped[$branch][] = $entry['tag'];
+            }
+
+            $result['tags'] = [];
+            foreach ($grouped as $branch => $tags) {
+                $result['tags'][] = [
+                    'branch' => $branch,
+                    'tags' => implode(',', $tags),
+                ];
+            }
         }
 
         // Output pure JSON (consumed by GitHub Actions)
