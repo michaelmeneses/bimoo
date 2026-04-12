@@ -53,11 +53,22 @@ class MoodleBranchManager
     }
 
     /**
-     * Clone stubs repository.
+     * Clone or fetch stubs repository.
      */
     public function cloneStubs(): string
     {
         $dir = $this->workDir . '/moodle-stubs';
+
+        if ($this->filesystem->exists($dir . '/.git')) {
+            $this->runGit(['fetch', '--all'], $dir);
+
+            return $dir;
+        }
+
+        if ($this->filesystem->exists($dir)) {
+            $this->filesystem->remove($dir);
+        }
+
         $this->runGit(['clone', $this->stubsRepo, $dir]);
 
         return $dir;
@@ -166,7 +177,7 @@ class MoodleBranchManager
 
         $message = self::buildCommitMessage($branch);
         $this->runGit(['commit', '-m', $message], $stubsDir);
-        $this->runGit(['push', 'origin', $branch], $stubsDir);
+        $this->runGit(['push', '-u', 'origin', $branch], $stubsDir);
 
         return true;
     }
@@ -394,7 +405,7 @@ class MoodleBranchManager
      */
     public function pushBranch(string $stubsDir, string $branch): void
     {
-        $this->runGit(['push', 'origin', $branch], $stubsDir);
+        $this->runGit(['push', '-u', 'origin', $branch], $stubsDir);
     }
 
     /**
