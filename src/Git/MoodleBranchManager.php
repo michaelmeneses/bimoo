@@ -98,6 +98,7 @@ class MoodleBranchManager
 
     /**
      * Switch or create branch in the stubs repository.
+     * Ensures base files (composer.json, README.md, LICENSE) exist from the default branch.
      */
     public function switchStubsBranch(string $stubsDir, string $branch): void
     {
@@ -111,6 +112,36 @@ class MoodleBranchManager
             // Remove any tracked files from previous branch
             $process = new Process(['git', 'rm', '-rf', '.'], $stubsDir);
             $process->run(); // May fail if nothing to remove
+        }
+
+        // Ensure base files exist (required for Packagist to recognize the branch)
+        $this->ensureBaseFiles($stubsDir);
+    }
+
+    /**
+     * Copy base files from the default branch if they don't exist.
+     * These files are required for Packagist to recognize each branch as a valid package.
+     */
+    private function ensureBaseFiles(string $stubsDir): void
+    {
+        $baseFiles = ['composer.json', 'README.md', 'LICENSE'];
+
+        foreach ($baseFiles as $file) {
+            if (!$this->filesystem->exists($stubsDir . '/' . $file)) {
+                // Try to checkout from main, then master
+                foreach (['main', 'master'] as $defaultBranch) {
+                    $process = new Process(
+                        ['git', 'show', "{$defaultBranch}:{$file}"],
+                        $stubsDir,
+                    );
+                    $process->run();
+
+                    if ($process->isSuccessful()) {
+                        file_put_contents($stubsDir . '/' . $file, $process->getOutput());
+                        break;
+                    }
+                }
+            }
         }
     }
 
