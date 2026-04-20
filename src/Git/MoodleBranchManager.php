@@ -36,8 +36,8 @@ class MoodleBranchManager
         $dir = $this->workDir . '/moodle';
 
         if ($this->filesystem->exists($dir . '/HEAD')) {
-            // Bare repo already exists — fetch updates
-            $this->runGit(['fetch', '--all'], $dir);
+            // Bare repo already exists — fetch updates (--tags needed for bare repos)
+            $this->runGit(['fetch', '--all', '--tags'], $dir);
 
             return $dir;
         }
