@@ -22,7 +22,6 @@ on:
         default: false
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   STUBS_REPO: git@github.com:michaelmeneses/moodle-stubs.git
   STUBS_REPO_SLUG: michaelmeneses/moodle-stubs
   MOODLE_REPO: https://github.com/moodle/moodle.git
@@ -55,7 +54,7 @@ jobs:
         run: composer install --no-dev --prefer-dist --no-interaction
 
       - name: Setup SSH key
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: ${{ secrets.STUBS_DEPLOY_KEY }}
 
@@ -120,7 +119,7 @@ jobs:
         run: composer install --no-dev --prefer-dist --no-interaction
 
       - name: Setup SSH key
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: ${{ secrets.STUBS_DEPLOY_KEY }}
 
@@ -164,7 +163,7 @@ jobs:
         run: composer install --no-dev --prefer-dist --no-interaction
 
       - name: Setup SSH key
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: ${{ secrets.STUBS_DEPLOY_KEY }}
 
