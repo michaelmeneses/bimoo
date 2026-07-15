@@ -68,7 +68,36 @@ class SyncTagsCommand extends Command
                 null,
                 InputOption::VALUE_NONE,
                 'Show what would be done without pushing',
+            )
+            ->addOption(
+                'rebuild',
+                null,
+                InputOption::VALUE_NONE,
+                'Regenerate stubs for tags that already exist in the stubs repo and publish them as 4-segment rebuild tags (vX.Y.Z -> vX.Y.Z.N). Published tags stay immutable; only tag refs are pushed (branch refs untouched).',
             );
+    }
+
+    /**
+     * Next rebuild tag for a base tag: vX.Y.Z -> vX.Y.Z.1, or .N+1 when
+     * rebuilds already exist.
+     *
+     * @param list<string> $existingTags
+     */
+    public static function nextRebuildTag(string $baseTag, array $existingTags): string
+    {
+        $max = 0;
+        $prefix = $baseTag . '.';
+        foreach ($existingTags as $existing) {
+            if (!str_starts_with($existing, $prefix)) {
+                continue;
+            }
+            $suffix = substr($existing, strlen($prefix));
+            if (ctype_digit($suffix)) {
+                $max = max($max, (int) $suffix);
+            }
+        }
+
+        return $prefix . ($max + 1);
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -80,6 +109,7 @@ class SyncTagsCommand extends Command
         $specificTags = $input->getOption('tags');
         $workDir = $input->getOption('work-dir');
         $dryRun = $input->getOption('dry-run');
+        $rebuild = (bool) $input->getOption('rebuild');
 
         if (empty($stubsRepo)) {
             $io->error('The --stubs-repo option is required.');
@@ -115,18 +145,27 @@ class SyncTagsCommand extends Command
             $stubsTags = MoodleBranchManager::lsRemoteTags($stubsRepo);
             $existingTagNames = array_keys($stubsTags);
 
-            // Step 3: Find new tags
-            $newTags = array_diff($tagsToProcess, $existingTagNames);
+            // Step 3: Find the tags to process. Default: Moodle tags with no
+            // stub tag yet. Rebuild: tags that DO exist already — the published
+            // tag stays immutable and the regenerated stubs ship as vX.Y.Z.N.
+            if ($rebuild) {
+                $newTags = array_intersect($tagsToProcess, $existingTagNames);
+            } else {
+                $newTags = array_diff($tagsToProcess, $existingTagNames);
+            }
 
             if (empty($newTags)) {
-                $io->success('All tags are up-to-date. Nothing to do.');
+                $io->success($rebuild
+                    ? 'No matching existing tags to rebuild. Nothing to do.'
+                    : 'All tags are up-to-date. Nothing to do.');
 
                 return Command::SUCCESS;
             }
 
             $io->text(sprintf(
-                'Found <info>%d</info> new tags to process (out of %d total).',
+                'Found <info>%d</info> %s tags to process (out of %d total).',
                 count($newTags),
+                $rebuild ? 'rebuildable' : 'new',
                 count($tagsToProcess),
             ));
             $io->listing($newTags);
@@ -204,27 +243,38 @@ class SyncTagsCommand extends Command
                     $moodleSha = $moodleTags[$tag] ?? '';
                     $manager->writeMoodleSha($stubsDir, $moodleSha);
 
+                    $publishTag = $rebuild
+                        ? self::nextRebuildTag($tag, $existingTagNames)
+                        : $tag;
+
                     if ($dryRun) {
-                        $io->text("  [DRY RUN] Would commit as {$tag} on {$branch}.");
+                        $io->text("  [DRY RUN] Would commit as {$publishTag} on {$branch}.");
                         continue;
                     }
 
                     // Commit, tag, and push
-                    $committed = $manager->commitForTag($stubsDir, $tag);
+                    $committed = $manager->commitForTag($stubsDir, $publishTag);
                     if ($committed) {
-                        $manager->createTag($stubsDir, $tag, "Stubs for Moodle {$tag}");
-                        $io->text("  Tagged {$tag}.");
+                        $manager->createTag($stubsDir, $publishTag, "Stubs for Moodle {$tag}");
+                        $io->text("  Tagged {$publishTag}.");
                     } else {
                         $io->text('  No changes from previous version. Tagging current HEAD.');
-                        $manager->createTag($stubsDir, $tag, "Stubs for Moodle {$tag}");
+                        $manager->createTag($stubsDir, $publishTag, "Stubs for Moodle {$tag}");
                     }
                 }
 
-                // Push branch + all tags at once
+                // Push refs. Rebuild publishes tags only: moving the shared
+                // stubs branch back to an old tag's content would regress it.
                 if (!$dryRun) {
-                    $manager->pushBranch($stubsDir, $branch);
+                    if (!$rebuild) {
+                        $manager->pushBranch($stubsDir, $branch);
+                    }
                     $manager->pushAllTags($stubsDir);
-                    $io->text("  Pushed {$branch} with " . count($tags) . ' tags.');
+                    $io->text(sprintf(
+                        '  Pushed %s%d tags.',
+                        $rebuild ? '' : $branch . ' with ',
+                        count($tags),
+                    ));
                 }
             }
 
