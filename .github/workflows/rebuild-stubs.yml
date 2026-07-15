@@ -1,0 +1,60 @@
+name: Rebuild Moodle Stubs (4-segment tags)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: 'Comma-separated EXISTING stub tags to rebuild (e.g., v5.0.8,v4.5.12)'
+        required: true
+      dry_run:
+        description: 'Dry run (no push)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  STUBS_REPO: git@github.com:michaelmeneses/moodle-stubs.git
+  MOODLE_REPO: https://github.com/moodle/moodle.git
+
+jobs:
+  rebuild:
+    name: Rebuild ${{ inputs.tags }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout bimoo
+        uses: actions/checkout@v5
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --no-dev --prefer-dist --no-interaction
+
+      - name: Setup SSH key
+        uses: webfactory/ssh-agent@v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.STUBS_DEPLOY_KEY }}
+
+      - name: Configure git
+        run: |
+          git config --global user.name "Bimoo Bot"
+          git config --global user.email "bimoo-bot@users.noreply.github.com"
+
+      - name: Rebuild tags
+        run: |
+          DRY_FLAG=""
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            DRY_FLAG="--dry-run"
+          fi
+
+          php bin/bimoo sync:tags \
+            --stubs-repo="${STUBS_REPO}" \
+            --moodle-repo="${MOODLE_REPO}" \
+            --tags="${{ inputs.tags }}" \
+            --rebuild \
+            $DRY_FLAG
