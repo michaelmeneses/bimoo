@@ -276,4 +276,183 @@ class StubNodeVisitorTest extends TestCase
         $this->assertStringContainsString("define('CLI_SCRIPT',", $output);
         $this->assertStringContainsString('null', $output);
     }
+
+    public function testClassAliasReemittedAsGlobalDeclaration(): void
+    {
+        $input = <<<'PHP'
+            <?php
+            namespace core;
+
+            class url {
+                public function out(bool $escaped = true): string { return ''; }
+            }
+
+            class_alias(url::class, \moodle_url::class);
+            PHP;
+
+        $output = $this->processCode($input);
+
+        $this->assertStringNotContainsString('class_alias', $output);
+        $this->assertStringContainsString('class moodle_url extends \core\url', $output);
+        // The alias lands in the global namespace block, not inside core
+        $this->assertMatchesRegularExpression(
+            '/namespace \{.*class moodle_url extends \\\\core\\\\url/s',
+            $output,
+        );
+        $this->assertStringContainsString('Runtime class alias of \core\url', $output);
+    }
+
+    public function testClassAliasWithStringAliasName(): void
+    {
+        $input = <<<'PHP'
+            <?php
+            namespace core;
+
+            class plugin_manager {}
+
+            class_alias(plugin_manager::class, 'core_plugin_manager');
+            PHP;
+
+        $output = $this->processCode($input);
+
+        $this->assertStringContainsString(
+            'class core_plugin_manager extends \core\plugin_manager',
+            $output,
+        );
+    }
+
+    public function testClassAliasOfInterfaceEmitsInterface(): void
+    {
+        $input = <<<'PHP'
+            <?php
+            namespace core\output;
+
+            interface templatable {
+                public function export_for_template(): array;
+            }
+
+            class_alias(templatable::class, \templatable::class);
+            PHP;
+
+        $output = $this->processCode($input);
+
+        $this->assertStringContainsString(
+            'interface templatable extends \core\output\templatable',
+            $output,
+        );
+        $this->assertStringNotContainsString('class templatable', $output);
+    }
+
+    public function testClassAliasOfAbstractClassStaysAbstract(): void
+    {
+        $input = <<<'PHP'
+            <?php
+            namespace core;
+
+            abstract class base_thing {
+                abstract public function run(): void;
+            }
+
+            class_alias(base_thing::class, \legacy_base::class);
+            PHP;
+
+        $output = $this->processCode($input);
+
+        $this->assertStringContainsString(
+            'abstract class legacy_base extends \core\base_thing',
+            $output,
+        );
+    }
+
+    public function testClassAliasOfEnumIsDropped(): void
+    {
+        $input = <<<'PHP'
+            <?php
+            namespace core;
+
+            enum status: string {
+                case Active = 'active';
+            }
+
+            class_alias(status::class, \legacy_status::class);
+            PHP;
+
+        $output = $this->processCode($input);
+
+        $this->assertStringNotContainsString('class_alias', $output);
+        $this->assertStringNotContainsString('legacy_status', $output);
+    }
+
+    public function testClassAliasWithDynamicArgumentsIsDropped(): void
+    {
+        $input = <<<'PHP'
+            <?php
+            namespace core;
+
+            class renamed {}
+
+            class_alias($newclassname, $classname);
+            PHP;
+
+        $output = $this->processCode($input);
+
+        $this->assertStringNotContainsString('class_alias', $output);
+        $this->assertStringContainsString('class renamed', $output);
+    }
+
+    public function testClassAliasResolvesUseImports(): void
+    {
+        $input = <<<'PHP'
+            <?php
+            namespace core\deprecated;
+
+            use core\url as canonical_url;
+
+            class keeper {}
+
+            class_alias(canonical_url::class, \moodle_url::class);
+            PHP;
+
+        $output = $this->processCode($input);
+
+        $this->assertStringContainsString('class moodle_url extends \core\url', $output);
+    }
+
+    public function testClassAliasInUnnamespacedFileEmittedInline(): void
+    {
+        $input = <<<'PHP'
+            <?php
+            class_alias('SimplePie\Author', 'SimplePie_Author');
+            class Foo {}
+            PHP;
+
+        $output = $this->processCode($input);
+
+        $this->assertStringContainsString(
+            'class SimplePie_Author extends \SimplePie\Author',
+            $output,
+        );
+        $this->assertStringNotContainsString('namespace', $output);
+    }
+
+    public function testClassAliasMatchingExistingDeclarationIsSkipped(): void
+    {
+        $input = <<<'PHP'
+            <?php
+            namespace core;
+
+            class emoticon_manager {}
+
+            class_alias(emoticon_manager::class, \core\emoticon_manager::class);
+            PHP;
+
+        $output = $this->processCode($input);
+
+        $this->assertStringNotContainsString('class_alias', $output);
+        $this->assertSame(
+            1,
+            substr_count($output, 'class emoticon_manager'),
+            'Self-referential alias must not duplicate the declaration',
+        );
+    }
 }
