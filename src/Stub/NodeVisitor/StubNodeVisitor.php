@@ -99,6 +99,12 @@ class StubNodeVisitor extends NodeVisitorAbstract
             return true;
         }
 
+        // Always keep: use imports — stripping them leaves extends/implements
+        // clauses and signature types resolving as wrong-namespace short names
+        if ($node instanceof Stmt\Use_ || $node instanceof Stmt\GroupUse) {
+            return true;
+        }
+
         // Always keep: const declarations at file scope
         if ($node instanceof Stmt\Const_) {
             return true;

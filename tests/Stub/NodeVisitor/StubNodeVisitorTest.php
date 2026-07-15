@@ -224,6 +224,50 @@ class StubNodeVisitorTest extends TestCase
         $this->assertStringContainsString('public const TEACHER = 3', $output);
     }
 
+    public function testUseImportsPreserved(): void
+    {
+        $input = <<<'PHP'
+            <?php
+            namespace core\output;
+
+            use core\context;
+            use moodle_url as url_alias;
+            use function core\bootstrap;
+            use const core\VERSION;
+
+            class renderer extends base_renderer {
+                public function render(context $ctx): string { return ''; }
+            }
+            PHP;
+
+        $output = $this->processCode($input);
+
+        $this->assertStringContainsString('use core\context;', $output);
+        $this->assertStringContainsString('use moodle_url as url_alias;', $output);
+        $this->assertStringContainsString('use function core\bootstrap;', $output);
+        $this->assertStringContainsString('use const core\VERSION;', $output);
+        $this->assertStringContainsString('class renderer extends base_renderer', $output);
+    }
+
+    public function testGroupUseImportsPreserved(): void
+    {
+        $input = <<<'PHP'
+            <?php
+            namespace core;
+
+            use core\output\{renderer, templatable};
+
+            class page {
+                public function out(renderer $r): void {}
+            }
+            PHP;
+
+        $output = $this->processCode($input);
+
+        $this->assertStringContainsString('use core\output\{renderer, templatable};', $output);
+        $this->assertStringContainsString('class page', $output);
+    }
+
     public function testNonLiteralDefineValueReplacedWithNull(): void
     {
         $input = "<?php define('CLI_SCRIPT', php_sapi_name() === 'cli');";
